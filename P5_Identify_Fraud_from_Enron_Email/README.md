@@ -3,7 +3,7 @@ In this project, I play detective, and put my machine learning skills to use by 
 
 ###Project Files
 * **final_project_dataset.pkl**:  The dataset for the project.
-* **Data_Instruction.txt**: Instruction of Enron Data set.
+* **Data_Instruction.md**: Instruction of Enron Data set.
 * **poi_id.py**: Python code of POI identifier with following things: engineer the features, pick and tune an algorithm, and to test and evaluate my identifier.
 * **feature_scores.txt**: Scores of features created by poi_id.py.
 * **classifiers_performance.png**: A table of each classifiers' performance created by poi_id.py.
