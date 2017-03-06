@@ -1,0 +1,6 @@
+The data set is about Beijing.
+Map Area : Beijing, China
+link https://mapzen.com/data/metro-extracts/metro/beijing_china/
+I choose Beijing because I'm familiar with it. 
+
+Note: In the file, there are two .osm files, one with a size of 166 MB is full set, while the other is a sample set. Since the size of dataset is less then 200 MB, which I think is not large. Besides, in order to survy the whole dataset, I use the whole dataset instead of sampling to observe it.

@@ -1,0 +1,6 @@
+https://docs.python.org/2/library/xml.etree.elementtree.html#
+http://docs.python-cerberus.org/en/stable/
+https://www.tutorialspoint.com/python/file_next.htm
+https://www.quora.com/What-are-some-examples-of-Python-iteritems
+https://pypi.python.org/pypi/validator.py
+http://docs.python-cerberus.org/en/stable/validation-rules.html
