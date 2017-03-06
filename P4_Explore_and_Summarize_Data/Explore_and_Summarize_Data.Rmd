@@ -1,0 +1,742 @@
+White Wine Quality Exploration Report by Shaomeng Chen
+========================================================
+#Introduction 
+This project will explore a dataset about chemical properties of white wines in order to answer the following question: “Which chemical properties influence the quality of white wines?” The dataset contains information about 4,898 white wines with 11 variable on quantifying the chemical properties of each wine. At least 3 wine experts rated the quality of each wine, providing a rating between 0 (very bad) and 10 (very excellent).
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,warning=FALSE,  message=FALSE)
+```
+
+```{r  packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(scales)
+library(memisc)
+library(corrplot)
+library(rpart)
+library(e1071)
+library(caret)
+library(randomForest)
+```
+
+###Overview of the Data Set
+```{r  Load_the_Data}
+# Load the Data
+wine_df<-read.csv('/Users/liz/Documents/p4/wineQualityWhites.csv')
+str(wine_df)
+summary(wine_df)
+```
+   
+We can see that the data set consists of 12 variables and an index column nameed X, with 4,898 observations.And the variables are all in type of numeric. Quality is in type of int.The amount of volatile acidity, citric acid, chlorides and sulphates are very small, while the amount of free sulfur dioxide and total sulfur dioxide are very large.The qualities of all are between 3 and 9.
+
+# Univariate Plots Section
+In order to see their distribution, let's analyze every single variable by plotting their histograms. It will also be helpful to recognize outliers.
+
+###Quality 
+```{r quality_summary }
+summary(wine_df$quality)
+```
+```{r    quality_plot}
+ggplot(aes(quality), data = wine_df)+
+  geom_bar() +
+  scale_x_continuous(breaks = seq(0,10,1))
+```
+      
+We can see that the distribution of quality looks like normal, with a mean of 5.878 and a median of 6. And the peak is at 6.
+
+###Fixed Acidity 
+```{r fixed_acidity_summary}
+summary(wine_df$fixed.acidity)
+```
+
+```{r    fixed_acidity_plot}
+ggplot(aes(fixed.acidity), data = wine_df)+
+  geom_histogram(binwidth = 0.2) + 
+  scale_x_continuous(breaks = seq(0,15,2),limits = c(0,15))
+
+```
+   
+We can see that the distribution seems to be normal. Also, the majority of fixed acidity is from 5 to 8. And the peak is at 6.8.
+
+###Volatile Acidity
+```{r   volatile_acidity_summary}
+summary(wine_df$volatile.acidity)
+```
+
+```{r    volatile_acidity_plot}
+p1<-ggplot(aes(volatile.acidity), data = wine_df)+
+  geom_histogram(binwidth = 0.02) +
+  scale_x_continuous(breaks = seq(0,1.2,0.2),limits = c(0,1.2))+
+  ggtitle('Histogram with Outliers')
+  
+p2<-ggplot(aes(volatile.acidity), data = wine_df)+
+  geom_histogram(binwidth = 0.02) +
+  xlim(0,0.7)+
+  scale_x_continuous(breaks = seq(0,0.7,0.1),limits = c(0,0.7))+
+  ggtitle('Histogram without Outliers')
+
+grid.arrange(p1, p2 , ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal, and a little right tail. Also, the majority of volatile acidity is from 0.15 to 0.35.And the peak is at 0.24
+
+###Citric Acid
+```{r   citric_acid_summary}
+summary(wine_df$citric.acid)
+```
+
+```{r   citric_acid_plot}
+p1<-ggplot(aes(citric.acid), data = wine_df)+
+  geom_histogram(binwidth = 0.02) +
+  ggtitle('Histogram with Outliers')
+  
+p2<-ggplot(aes(citric.acid), data = wine_df)+
+  geom_histogram(binwidth = 0.02) +
+  xlim(0,0.8)+
+  scale_x_continuous(breaks = seq(0,0.8,0.1),limits = c(0,0.8))+
+  ggtitle('Histogram without Outliers')
+  
+grid.arrange(p1, p2, ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal except for a peak at 0.48.
+
+###Residual Sugar
+```{r   residual_sugar_summary}
+summary(wine_df$residual.sugar )
+```
+
+```{r   residual_sugar_plot}
+p1<-ggplot(aes(residual.sugar ), data = wine_df)+
+  geom_histogram(binwidth = 2) +
+  scale_x_continuous() +
+  ggtitle('Original Histogram')
+  
+p2<-ggplot(aes(residual.sugar ), data = wine_df)+
+  geom_histogram(binwidth = 0.03) +
+  xlim(0,25)+
+  scale_x_log10(breaks = c(0,1,1.5,2.5,4,6,9,15,25)) +
+  ggtitle('Tranformed Histogram')
+
+grid.arrange(p1, p2, ncol=2)
+```
+   
+Transformed the long tail data by using logscale on x-axis to better understand the distribution of residual sugar. The tranformed  distribution appears bimodal with a peak around 1.25 and a peak around 8.
+
+###Chlorides
+```{r   chlorides_summary}
+summary(wine_df$chlorides)
+```
+
+```{r   chlorides_plot}
+p1<-ggplot(aes(chlorides), data = wine_df)+
+  geom_histogram(binwidth = 0.005) +
+  ggtitle('Histogram with Outliers')
+  
+p2<-ggplot(aes(chlorides), data = wine_df)+
+  geom_histogram(binwidth = 0.005) +
+  xlim(0,0.1)+
+  scale_x_continuous(breaks = seq(0,0.1,0.02),limits = c(0,0.1))+
+  ggtitle('Histogram without Outliers')
+  
+grid.arrange(p1, p2, ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peaks at 0.045.
+
+###Free Sulfur Dioxide
+```{r   free_sulfur_dioxide_summary}
+summary(wine_df$free.sulfur.dioxide)
+```
+
+```{r    free_sulfur_dioxide_plot}
+p1<-ggplot(aes(free.sulfur.dioxide), data = wine_df)+
+  geom_histogram(binwidth = 5) +
+  ggtitle('Histogram with Outliers')
+  
+p2<-ggplot(aes(free.sulfur.dioxide), data = wine_df)+
+  geom_histogram(binwidth = 2) +
+  xlim(0,90)+
+  scale_x_continuous(breaks = seq(0,90,10),limits = c(0,90)) +
+  ggtitle('Histogram without Outliers')
+  
+grid.arrange(p1, p2, ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peak at 28, and a little right tail.
+
+###Total Sulfur Dioxide
+```{r    total_sulfur_dioxide_summary}
+summary(wine_df$total.sulfur.dioxide)
+```
+
+```{r    total_sulfur_dioxide_plot}
+p1<-ggplot(aes(total.sulfur.dioxide), data = wine_df)+
+  geom_histogram(binwidth = 10) +
+    ggtitle('Histogram with Outliers')
+  
+p2<-ggplot(aes(total.sulfur.dioxide), data = wine_df)+
+  geom_histogram(binwidth = 10) +
+  xlim(0,300)+
+  scale_x_continuous(breaks = seq(0,300,50),limits = c(0,300))+
+  ggtitle('Histogram without Outliers')
+  
+grid.arrange(p1, p2, ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peaks at 120.
+
+###Density
+```{r    density_summary}
+summary(wine_df$density)
+```
+
+```{r    density_plot}
+p1<-ggplot(aes(density), data = wine_df)+
+  geom_histogram(binwidth = 0.001) +
+  ggtitle('Histogram with Outliers')
+  
+p2<-ggplot(aes(density), data = wine_df)+
+  geom_histogram(binwidth = 0.0005) +
+  xlim(0.985,1.005)+
+  scale_x_continuous(breaks = seq(0.985,1.005,0.005),limits = c(0.985,1.005))+
+  ggtitle('Histogram without Outliers')
+  
+grid.arrange(p1, p2, ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peaks at 0.0993.
+
+###PH
+```{r   pH_summary}
+summary(wine_df$pH)
+```
+
+```{r   pH_plot}
+ggplot(aes(pH), data = wine_df)+
+  geom_histogram(binwidth = 0.02) +
+  scale_x_continuous(breaks = seq(2.7,3.9,0.1),limits = c(2.7,3.9))
+
+```
+   
+We can see that the distribution seems to be normal with a peaks at 3.14.
+
+###Sulphates
+```{r    sulphates_summary}
+summary(wine_df$sulphates)
+```
+
+```{r    sulphates_plot}
+ggplot(aes(sulphates), data = wine_df)+
+  geom_histogram(binwidth = 0.02) +
+  scale_x_continuous(breaks = seq(0.2,1.1,0.05),limits = c(0.2,1.1))
+  
+```
+   
+We can see that the distribution seems to be normal with a peak at 0.46, and a little right tail.
+
+###Alcohol
+```{r    alcohol_summary}
+summary(wine_df$alcohol)
+```
+
+```{r    alcohol_plot}
+p1<-ggplot(aes(alcohol), data = wine_df)+
+  geom_histogram(binwidth = 0.2)  +
+  ggtitle('Original Histogram')
+
+p2<-ggplot(aes(alcohol), data = wine_df)+
+  geom_histogram(binwidth = 0.01) +
+  scale_x_log10(breaks = seq(8,15,1)) +
+  ggtitle('Transformed Histogram')
+  
+grid.arrange(p1, p2, ncol=2)
+```
+   
+Transformed the long tail data by using logscale on x-axis to better understand the distribution of residual sugar. The tranformed  distribution appears bimodal with a peak around 10.
+
+##New Variables
+Since there are fixed acidity and volatile acidity, free sulfur dioxide and total sulfur dioxide. I create following 4 new variables, which may helpful to find out factors that influence quality.   
+
+ * total acidity, computing method: fixed acidity + volatile acidity;   
+ * fixed acidity ratio, computing method: fixed acidity / total acidity;   
+ * non_free sulfur dioxide, computing method: total sulfur dioxide - free sulfur dioxide;   
+ * free sulfur dioxide ratio, computing method: free sulfur dioxide / total sulfur dioxide;   
+
+###Total Acidity
+```{r    total_acidity_summary}
+wine_df$total.acidity <- wine_df$fixed.acidity + 
+  wine_df$volatile.acidity
+summary(wine_df$total.acidity)
+```
+
+```{r    total_acidity_plot}
+p1<-ggplot(aes(total.acidity), data = wine_df)+
+  geom_histogram(binwidth = 0.2) +
+  ggtitle('Histogram with outliers')
+
+p2<-ggplot(aes(total.acidity), data = wine_df)+
+  geom_histogram(binwidth = 0.2) +
+  xlim(4,11) +
+  scale_x_continuous(breaks = seq(4,11,1),limits = c(4,11))+
+  ggtitle('Histogram without outliers')
+
+grid.arrange(p1, p2, ncol=2)
+  
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peaks at 7.
+
+###Fixed Acidity Ratio
+```{r    fixed_acidity_ratio_summary}
+wine_df$fixed.acidity.ratio <- wine_df$fixed.acidity / wine_df$total.acidity
+summary(wine_df$fixed.acidity.ratio)
+```
+```{r   fixed_acidity_ratio_plot }
+ggplot(aes(fixed.acidity.ratio), data = wine_df)+
+  geom_histogram(binwidth = 0.001) + 
+  scale_x_continuous(breaks = seq(0.84,1,0.01))
+  
+```
+   
+We can see that the distribution seems to be left skew distribution with a peaks at 0.965.
+
+###Non Free Slfur Dioxide
+```{r    non_sulfur_dioxide_summary}
+wine_df$non.free.sulfur.dioxide <- wine_df$total.sulfur.dioxide - 
+  wine_df$free.sulfur.dioxide
+summary(wine_df$non.free.sulfur.dioxide)
+```
+```{r    non_sulfur_dioxide_plot}
+p1 <- ggplot(aes(non.free.sulfur.dioxide), data = wine_df)+
+  geom_histogram(binwidth = 5) +
+  ggtitle('Histogram with outliers')
+
+p2 <- ggplot(aes(non.free.sulfur.dioxide), data = wine_df)+
+  geom_histogram(binwidth = 5) +
+  xlim(0,220)+
+  scale_x_continuous(breaks = seq(0,220,40),limits = c(0,220))+
+  ggtitle('Histogram without outliers')
+
+grid.arrange(p1, p2, ncol=2)
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peaks at 85, and a little right tail.
+
+###Free Sulfur Dioxide Ratio
+```{r   free_sulfur_dioxide_ratio_summary }
+wine_df$free.sulfur.dioxide.ratio <- wine_df$free.sulfur.dioxide  / wine_df$total.sulfur.dioxide
+summary(wine_df$free.sulfur.dioxide.ratio)
+```
+```{r    free_sulfur_dioxide_ratio_plot}
+p1 <- ggplot(aes(free.sulfur.dioxide.ratio), data = wine_df)+
+  geom_histogram(binwidth = 0.01) + 
+  ggtitle('Histogram with outliers')
+p2 <- ggplot(aes(free.sulfur.dioxide.ratio), data = wine_df)+
+  geom_histogram(binwidth = 0.01) +
+  xlim(0,0.5)+
+  scale_x_continuous(breaks = seq(0,0.5,0.1),limits = c(0,0.5))+
+  ggtitle('Histogram without outliers')
+
+grid.arrange(p1, p2, ncol=2)
+
+```
+   
+After removing the outliers to the right, we can see that the distribution seems to be normal with a peaks at 0.27.
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+There are 4,898 white wines in the dataset with 12 features,with an index column 'X'. The variable quality is in type of int, while others are in type of numeric.
+
+### What is/are the main feature(s) of interest in your dataset?
+The main features in the data set is quality. I’m interested in findind out which features influnce the quality and how to predict the quality by these features.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+I think all these features will influence the quality of white wine ,especialy alcohol.
+
+### Did you create any new variables from existing variables in the dataset?
+Yes, I create 4 new variables: Two depending on fixed acidity and volatile acidity, the other depending on free sulfur dioxide and total sulfur dioxide.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+There are some outliers in thoese distributions. In order to observe distribution more accuracy, I removed these outliers when plotting histograms. But I yhink these outeliers are not incorrect, so I will keep these outliers.
+
+
+# Bivariate Plots Section
+Now, let's explore the correlations between variables.
+```{r   cor_matrix,fig.width=10, fig.height=10}
+M<-cor(subset(wine_df, select=-c(X)))
+corrplot(M, method="number")
+```
+   
+We can see that quality has relatively strong correlations with density and alcohol. The correlation coefficients are -0.44 and -0.31, respectively. Besides, the absolute value of correlation coefficients between quality and chlorides, non_free sulfur dioxide, free sulfur dioxide ratio also are all above 0.2. So, we will make a deep exploration between quality and these 5 variables respectively.
+Except for the 4 varibles which come from existing variables, residual sugar and density has the strongest relationship with a correlation coefficient of 0.84.So, we will make a further exploration between these two variables too.
+
+###Quality vs Alcohol
+For the convenience of showing the relationships between quality and other variables by plots, I will create a new  variable named quality_f by changing the type of quality into ordered factor.
+```{r   quality_f}
+wine_df$quality_f <- factor(wine_df$quality,ordered = TRUE)
+```
+```{r   quality_vs_alcohol_scatterplot}
+ggplot(aes(x=alcohol, y = quality), data = wine_df)+
+  geom_jitter(alpha=1/3,size=1 ,width = 1) 
+
+```
+  
+We can see the tendency that wines with higher alcohol percentage have higher quality.
+
+```{r   quality_vs_alcohol_boxplot}
+wine_df$quality_f <- factor(wine_df$quality,ordered = TRUE)
+ggplot(aes( x = quality_f,y=alcohol), data = wine_df)+
+  geom_boxplot()
+```
+   
+The boxplot also shows the same conclusion as scatterplot when quality is greater than 5.
+
+###Quality vs Density
+```{r   quality_vs_density_scatterplot}
+ggplot(aes(x=density, y = quality), 
+       data = wine_df)+
+  xlim(NA,1.005)+
+  geom_jitter(alpha=1/3,size = 0.5)
+```
+   
+We can see the tendency that wines with lower density have higher quality.
+
+```{r   quality_vs_density_boxplot}
+ggplot(aes(y=density, x = quality_f), 
+       data = wine_df)+
+   ylim(NA,1.005)+
+  geom_boxplot()
+```
+   
+The boxplot also shows the same conclusion as scatterplot when quality is greater than 5. The medians density of wines with quality between 3 and 5 have no big difference.
+
+###Quality vs Chlorides
+```{r   quality_vs_chlorides_scatterplot}
+ggplot(aes(x=chlorides, y = quality), 
+       data = wine_df) +
+   xlim(NA,0.1)+
+  geom_jitter(alpha=1/3,size = 0.5) 
+```
+   
+We can see the tendency that wines with higher chlorides have higher quality.
+
+```{r   quality_vs_chlorides_boxplot}
+ggplot(aes(y=chlorides, x = quality_f), 
+       data = wine_df)+
+   ylim(NA,0.1)+
+  geom_boxplot()
+```
+   
+The boxplot also shows the same conclusion as scatterplot when quality is greater than 5.And medians density of wines with quality between 3 and 5 have no big difference.
+
+###Quality vs Non_free Sulfur Dioxide
+```{r   quality_vs_non_free_sulfur_dioxide_scatterplot}
+ggplot(aes(x = non.free.sulfur.dioxide, y = quality), 
+       data = wine_df) +
+  xlim(NA,220)+
+  geom_jitter(alpha=1/3, size = 0.5) 
+```
+   
+We can see the tendency that wines with lower non_free sulfur dioxide have higher quality.
+
+```{r   quality_vs_non_free_sulfur_dioxide_boxplot}
+ggplot(aes(y=non.free.sulfur.dioxide, x = quality_f),
+       data = wine_df)+
+   ylim(NA,220)+
+  geom_boxplot()
+```
+   
+The boxplot also shows the same conclusion as scatterplot when quality is greater than 5.
+
+###Quality vs Free Sulfur Dioxide Ratio
+```{r   quality_vs_free_sulfur_dioxide_ratio_scatterplot}
+ggplot(aes(x = free.sulfur.dioxide.ratio, y = quality), 
+       data = wine_df) +
+   xlim(NA,0.5)+
+  geom_jitter(alpha=1/3,size = 0.5) 
+```
+   
+We can see the tendency that wines with higher free sulfur dioxide ratio have higher quality.   
+
+```{r   quality_vs_free_sulfur_dioxide_ratio_boxplot}
+ggplot(aes(y=free.sulfur.dioxide.ratio, x = quality_f), 
+       data = wine_df)+
+   ylim(NA,0.5)+
+  geom_boxplot()
+```
+   
+The boxplot also shows the same conclusion as scatterplot when quality is greater than 4.   
+
+###Residual Sugar vs Density
+```{r   residual_sugar_vs_density_scatterplot}
+ggplot(aes(x = residual.sugar, y = density), 
+       data = wine_df) +
+  xlim(NA,30)+
+  ylim(NA,1.005)+
+  geom_jitter(alpha = 1/5, width = 1 ,size = 0.5)
+```
+   
+Obeviously, we can see the tendency that higher residual sugar lead to higher density.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+After observing the correlationships between every two variables, we can see that alcohol has the strongest relationship with quality. Besides, density, chlorides, non_free sulfur dioxide, free sulfur dioxide ratio all have absolute value of correlation coefficients above 0.2 with quality, by which I think the relationship is worthy of attention. These 5 feature are the most important factor that influence the quality of white wine.        
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+I also observed the relationships between residual sugar and density. We can see that higher residual sugar lead to higher density.   
+
+### What was the strongest relationship you found?
+Except for the 4 new variables which come from existing variables, residual sugar and density has the strongest relationship with a correlation coefficient of 0.84. And we can see higher residual sugar lead to higher density clearly.   
+
+# Multivariate Plots Section
+Except for the 4 new variables, the absolute correlation coefficient values of residual sugar and density, alcohol and density, free sulfur dioxide and total sulfur dioxide, density and total sulfur dioxide are all above 0.5, which I think mean strong relationships. I'm curious about their relationships between quality. Now I'll expolre the relationships between those 4 pairs and quality by a scatterplot as follow:
+
+
+```{r    residual_sugar_vs_density_vs_quality_Plot}
+ggplot(aes(x=residual.sugar, y = density), 
+       data = wine_df)+
+  xlim(NA,30)+
+  ylim(NA,1.005)+
+  geom_jitter(aes(color = quality_f),
+              size = 1 , width = 0.5, alpha = 1/2)+
+  scale_color_brewer(type = 'seq')  + 
+  theme_dark()
+```
+   
+We can see a strong positive correlation between density and residual sugar. But the quality only seems to has relationship with density, not residual sugar. As a whole, I can say that the combination of density and residual sugar has no obvious relationship with quality.
+
+```{r    alcohol_vs_density_vs_quality_Plot}
+ggplot(aes(x=alcohol, y = density), 
+       data = wine_df)+
+   ylim(NA,1.005)+
+  geom_jitter(aes(color = quality_f),
+              size = 1 , width = 0.5, alpha = 1/2)+
+  scale_color_brewer(type = 'seq')  + 
+  theme_dark()
+```
+   
+Again, we can see a strong positive correlation between density and alcohol. Besides, we can see that wines with high quality tending to be in the bottom right corner of the plot, and low quality tending to be in the top right corner of the plot. There is a tendency that high alcohol percentage and low density may lead to high quality. That means the combination of density and alcohol has an obvious relationship with quality.   
+   
+```{r    free_vs_total_sulfur_dioxide_vs_quality_Plot}
+ggplot(aes(x=free.sulfur.dioxide, y = total.sulfur.dioxide), 
+       data = wine_df)+
+  xlim(NA,100)+
+  ylim(NA,300)+
+  geom_jitter(aes(color = quality_f),
+              size = 1 , width = 0.5, alpha = 1/2)+
+  scale_color_brewer(type = 'seq')  + 
+  theme_dark()
+```
+   
+We can see a positive correlation between free sulfur dioxide and total sulfur dioxide.But the quality seems to has little relationship with free sulfur dioxide and total sulfur dioxide. As a whole, I can say the combination of free sulfur dioxide and total sulfur dioxide has no meaningful relationship with quality.   
+   
+```{r    density_vs_total_sulfur_dioxide_vs_quality_Plot}
+ggplot(aes(x=density, y = total.sulfur.dioxide), 
+       data = wine_df)+
+  ylim(NA,400)+
+  geom_jitter(aes(color = quality_f),
+              size = 1 , width = 0.5, alpha = 1/2)+
+  scale_color_brewer(type = 'seq')  + 
+  theme_dark()
+```
+   
+We can't see some obvious correlation between density and total sulfur dioxide. The quality seems to has little relationship with free sulfur dioxide and total sulfur dioxide. As a whole, I can say the combination of density and total sulfur dioxide has no meningful relationship with quality.  
+
+
+# Multivariate Analysis
+
+I find that wines with high alcohol percentage and low density likely to get high quality.   
+   
+As alcohol, density, chlorides, non_free sulfur dioxide, free sulfur dioxide ratio all have absolute value of correlation coefficients above 0.2 with quality. I think they are the main features that influence the quality of whit wine. So I will use these 5 variables to create models for predicting the quality by these 5 features. Besides, I will also use all the variables to create models, and see the difference.    
+
+Since there are several calssical methods for classification, I will try decision tree, svm, naive Bayse and random forest to create models and compare each prediction accuracy. In addition, I divide the data into 2 parts randomly, the with 70% of all data is used to train the model, while the other 30% is used to test the model.   
+
+```{r   divide_data}
+index <- 1:nrow(wine_df) 
+set.seed(2013) 
+test_index <- sample(index, floor(length(index)*0.3)) 
+test_data <- wine_df[test_index, ] 
+train_data <- wine_df[-test_index, ] 
+```
+
+```{r   acc_function}
+acc<-function(x,y){
+  t_num=length(x)
+  c_num=0
+  for( i in 1:length(x)){
+    if (x[i] == y[i]){
+      c_num = c_num + 1
+    }
+  }
+  return (c_num / t_num)
+}
+```
+   
+Here is the result:
+```{r    dt_pridict_model_1}
+dt_fit <- rpart(quality_f ~ chlorides + density + alcohol+ 
+                  non.free.sulfur.dioxide + free.sulfur.dioxide.ratio ,
+                data = train_data,method ="class")
+test.pred <-predict(dt_fit, test_data,type="class")
+dt_acc <- acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of decision tree model with selected features is:', 
+    dt_acc )
+
+```
+```{r    dt_pridict_model_2}
+dt_fit <- rpart(quality_f ~ fixed.acidity + volatile.acidity + 
+                  citric.acid + residual.sugar + chlorides + 
+                  free.sulfur.dioxide + total.sulfur.dioxide + 
+                  density + pH + sulphates + alcohol + 
+                  total.acidity + fixed.acidity.ratio + 
+                  non.free.sulfur.dioxide + free.sulfur.dioxide.ratio, 
+                data = train_data,method ="class")
+test.pred <-predict(dt_fit, test_data,type="class")
+dt_acc <- acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of decision tree model with all features is:', 
+    dt_acc )
+
+```
+```{r     svm_pridict_model_1}
+svm_fit <- svm(quality_f ~ chlorides + density + alcohol+ 
+                 non.free.sulfur.dioxide + free.sulfur.dioxide.ratio,
+               data = train_data)
+test.pred <-predict(svm_fit, test_data)
+svm_acc <- acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of SVM model with selected features is:', 
+    svm_acc )
+```
+```{r     svm_pridict_model_2}
+svm_fit <- svm(quality_f ~ fixed.acidity + volatile.acidity + 
+                 citric.acid + residual.sugar + chlorides + 
+                 free.sulfur.dioxide + total.sulfur.dioxide + 
+                 density + pH + sulphates + alcohol + total.acidity + 
+                 fixed.acidity.ratio + non.free.sulfur.dioxide + 
+                 free.sulfur.dioxide.ratio ,
+               data = train_data)
+test.pred <-predict(svm_fit, test_data)
+svm_acc <- acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of SVM model with all features is:',
+    svm_acc )
+```
+```{r     nb_pridict_model_1}
+nb_fit <- naiveBayes(quality_f ~ chlorides + density + alcohol + 
+                       non.free.sulfur.dioxide + free.sulfur.dioxide.ratio,
+                     data = train_data) 
+test.pred <- predict(nb_fit, test_data)
+nb_acc<-acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of naive Bayse model with selected features is:', 
+    nb_acc )
+```
+```{r     nb_pridict_model_2}
+nb_fit <- naiveBayes(quality_f ~ fixed.acidity + volatile.acidity + 
+                       citric.acid + residual.sugar + chlorides + 
+                       free.sulfur.dioxide + total.sulfur.dioxide +
+                       density + pH + sulphates + alcohol + 
+                       total.acidity + fixed.acidity.ratio + 
+                       non.free.sulfur.dioxide + free.sulfur.dioxide.ratio,
+                     data = train_data) 
+test.pred <- predict(nb_fit, test_data)
+nb_acc<-acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of naive Bayse model with all features is:', 
+    nb_acc )
+```
+```{r    rf_pridict_model_1}
+rf_fit <- randomForest(quality_f ~ chlorides + density + alcohol+ 
+                         non.free.sulfur.dioxide + free.sulfur.dioxide.ratio,
+                       data = train_data)
+test.pred <-predict(rf_fit, test_data)
+rf_acc <- acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of random forest model with selected features is:', 
+    rf_acc )
+```
+```{r    rf_pridict_model_2}
+rf_fit <- randomForest(quality_f ~ fixed.acidity + volatile.acidity + 
+                         citric.acid + residual.sugar + chlorides + 
+                         free.sulfur.dioxide + total.sulfur.dioxide + 
+                         density + pH + sulphates + alcohol + 
+                         total.acidity + fixed.acidity.ratio + 
+                         non.free.sulfur.dioxide + free.sulfur.dioxide.ratio,
+                       data = train_data)
+test.pred <-predict(rf_fit, test_data)
+rf_acc <- acc(as.vector(test.pred) , as.vector(test_data$quality_f))
+cat('the accuracy of random forest model with all features is:', 
+    rf_acc )
+```
+   
+We can see that random forest model with all features has the highest accuracy of all, about 0.68. For there are 7 kind of quality(3 to 9) to choose in this data set, I think a accuracy of 0.64 is not a bad result. So, in this project, random forest model may be the best method for prediction.
+
+# Final Plots and Summary
+
+### Plot One
+```{r    Plot_One}
+ggplot(aes(quality), data = wine_df)+
+  geom_bar(color = 'black', fill = '#099DD9') +
+  stat_bin(binwidth=1,geom="text",aes(label=..count..), vjust=-1) + 
+  ylim(0,2500)+
+  scale_x_continuous(breaks = seq(0,10,1))+
+  labs(x="Quality",y="Amount of White Wines") +
+  ggtitle("Histogram of White Wine Quality") +
+  theme(plot.title = element_text(hjust = 0.5) )
+```
+```{r    Plot_One_Summary}
+summary(wine_df$quality)
+```
+   
+### Description One
+All the qualities are between 3 and 9, and distribute normally. The quality of 6 gets the largest frequency of all, while quality of 9 gets the smallest. Since there are 4898 observations, we can see that over 40% of them get the quality of 6. And nealy one third of them get the quality of 5. 
+
+### Plot Two
+```{r    Plot_Two}
+ggplot(aes(x = residual.sugar, y = density), 
+       data = wine_df) +
+  xlim(NA,30)+
+  ylim(NA,1.005)+
+  geom_jitter(alpha = 1/5, width = 1 ,size = 0.5)+
+  labs(x="Amount of Residual Sugar (g / dm^3)", y="Density of Water (g / cm^3)") +
+  ggtitle("Scatterplot of Residual Sugar vs Density of Water") +
+  theme(plot.title = element_text(hjust = 0.5) )
+```
+   
+### Description Two
+We can see a strong positive correlation between the amount of residual sugar and water density. There is a clear tendency that higher residual sugar quantity leading to higher water density.
+
+### Plot Three
+```{r    Plot_Three}
+ggplot(aes(x=alcohol, y = density), 
+       data = subset(wine_df,density<1.01))+
+  geom_jitter(aes(color = quality_f),
+              size = 1 , width = 0.5, alpha = 1/2)+
+  labs(x="Alcohol Percentage (% by volume)",
+       y="Density of Water (g / cm^3)",
+       color = "Quality\n" ) +
+  scale_color_brewer(type = 'seq') +
+  ggtitle('Quality by Alcohol Percentage and Water Density')+ 
+  theme_dark() +
+  theme(plot.title = element_text(hjust = 0.5) )
+```
+   
+### Description Three
+We can see that wines with high quality tending to be with high alcohol percentage and low water density, and low quality tending to be with low alcohol percentage and high water density. We can conclude the tendency that high alcohol percentage and low density may lead to high quality.   
+
+# Reflection
+The White wine dataset contains 4898 observations with 11 feature variables and one label variable(quality). I aim to find out which chemical properties affect wine quality, and try to create a simple model for predicting the quality by variables found before.   
+
+ * First, I looked into the 12 varibles by plotting their histograms, and computing some statistics like mean, median,  minimum value, maximum value, first quartile and third quartile. I found that most of them are distributed normaly. Though there existed some outliers, but I didn't think they were incorrect. Besides, I created 4 new variables that might influence quality.   
+ * Then I plotted the correlation matrix of every two variables. From which, I found that alcohol and density are two key important factor that may influence the quality. And another 3 variables might also influence quality since they had absolute value of correlation coefficients above 0.2 with quality. The bivariate scatterpolts and baoxplots I drew showed that there existed same trend between theses 5 varibles and quality on certain direction more or less.   
+ * Since there were 4 pairs of variables that had correlation coefficients above 0.5, which meant strong relationships. So I plotted scatterplots to find out the relationships between these 4 pairs and quality. It seems that high alcohol percentage and low density may lead to high quality.   
+ * Finaly, I use 4 different kinds of classifiers to create predition models. After comparing their accuracy, I found that random forest classifier with all features got the highest score.   
+
+I've successfully find out the relationship between quality and the combination of alcohol and density. But I could hardly to find out relationships between quality and other combinations. I think it might need some appropriate transformations on variables to find out obvious relationships.   
+For further exploration, I think variables like vintage, storage methoda and raw material can be include, which may have great effect on quality in my opinion. 
